@@ -532,31 +532,22 @@ public class BlockChiseled extends Block implements EntityBlock, IMultiStateBloc
     @Override
     public float getDestroyProgress(
             final BlockState state, final Player player, final BlockGetter worldIn, final BlockPos pos) {
-        if (ChiselsAndBits.getConfig().getServer().enableToolHarvestLevels.get()) {
-            BlockState actingState = actingAs.get();
+        BlockState actingState = actingAs.get();
 
-            if (actingState == null) {
-                actingState = getPrimaryState(worldIn, pos);
-            }
-
-            final float hardness = state.getDestroySpeed(worldIn, pos);
-            if (hardness < 0.0F) {
-                return 0.0F;
-            }
-
-            // since we can't call getDigSpeed on the acting state, we can just
-            // do some math to try and roughly estimate it.
-            float denom = player.getDestroySpeed(actingState);
-            float numer = player.getDestroySpeed(state);
-
-            if (!canHarvestBlockInternal(new SingleBlockBlockReader(state), ZERO, player)) {
-                return player.getDestroySpeed(actingState) / hardness / 100F * (numer / denom);
-            } else {
-                return player.getDestroySpeed(actingState) / hardness / 30F * (numer / denom);
-            }
+        if (actingState == null) {
+            actingState = getPrimaryState(worldIn, pos);
         }
 
-        return super.getDestroyProgress(state, player, worldIn, pos);
+        // break time follows the material the block was made of, not the chiseled block's own stats
+        final float hardness = actingState.getDestroySpeed(worldIn, pos);
+        if (hardness < 0.0F) {
+            return 0.0F;
+        }
+
+        final boolean harvestable =
+                !ChiselsAndBits.getConfig().getServer().enableToolHarvestLevels.get()
+                        || player.hasCorrectToolForDrops(actingState);
+        return player.getDestroySpeed(actingState) / hardness / (harvestable ? 30F : 100F);
     }
 
     public Identifier getModel() {
